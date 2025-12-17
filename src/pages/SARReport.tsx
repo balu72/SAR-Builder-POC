@@ -60,6 +60,9 @@ const SARReport = () => {
         scale: 2,
         useCORS: true,
         logging: false,
+        backgroundColor: "#f8fafc",
+        windowWidth: reportRef.current.scrollWidth,
+        windowHeight: reportRef.current.scrollHeight,
       });
       
       const imgData = canvas.toDataURL("image/png");
@@ -73,20 +76,28 @@ const SARReport = () => {
       const pdfHeight = pdf.internal.pageSize.getHeight();
       const imgWidth = canvas.width;
       const imgHeight = canvas.height;
-      const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
-      const imgX = (pdfWidth - imgWidth * ratio) / 2;
+      const ratio = pdfWidth / imgWidth;
+      const scaledHeight = imgHeight * ratio;
       
-      let heightLeft = imgHeight * ratio;
-      let position = 0;
+      let yOffset = 0;
+      let pageCount = 0;
       
-      pdf.addImage(imgData, "PNG", imgX, position, imgWidth * ratio, imgHeight * ratio);
-      heightLeft -= pdfHeight;
-      
-      while (heightLeft > 0) {
-        position = heightLeft - imgHeight * ratio;
-        pdf.addPage();
-        pdf.addImage(imgData, "PNG", imgX, position, imgWidth * ratio, imgHeight * ratio);
-        heightLeft -= pdfHeight;
+      while (yOffset < scaledHeight) {
+        if (pageCount > 0) {
+          pdf.addPage();
+        }
+        
+        pdf.addImage(
+          imgData,
+          "PNG",
+          0,
+          -yOffset,
+          pdfWidth,
+          scaledHeight
+        );
+        
+        yOffset += pdfHeight;
+        pageCount++;
       }
       
       pdf.save(`SAR_Report_${new Date().toISOString().split("T")[0]}.pdf`);
