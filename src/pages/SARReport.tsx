@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Download, Printer, Loader2 } from "lucide-react";
@@ -8,11 +8,16 @@ import DataTable from "@/components/report/DataTable";
 import { SARReportData } from "@/types/sarReport";
 import { mockSARData } from "@/data/mockSARData";
 import { Badge } from "@/components/ui/badge";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
+import { toast } from "sonner";
 
 const SARReport = () => {
   const navigate = useNavigate();
   const [data, setData] = useState<SARReportData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
+  const reportRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     // Simulate API call to Flask backend
@@ -41,6 +46,56 @@ const SARReport = () => {
     E: "Nature of transaction",
     F: "Value of transaction",
     Z: "Other reason",
+  };
+
+  const handleExportPDF = async () => {
+    if (!reportRef.current) return;
+    
+    setExporting(true);
+    toast.info("Generating PDF...");
+    
+    try {
+      const canvas = await html2canvas(reportRef.current, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+      });
+      
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "mm",
+        format: "a4",
+      });
+      
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = canvas.width;
+      const imgHeight = canvas.height;
+      const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
+      const imgX = (pdfWidth - imgWidth * ratio) / 2;
+      
+      let heightLeft = imgHeight * ratio;
+      let position = 0;
+      
+      pdf.addImage(imgData, "PNG", imgX, position, imgWidth * ratio, imgHeight * ratio);
+      heightLeft -= pdfHeight;
+      
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeight * ratio;
+        pdf.addPage();
+        pdf.addImage(imgData, "PNG", imgX, position, imgWidth * ratio, imgHeight * ratio);
+        heightLeft -= pdfHeight;
+      }
+      
+      pdf.save(`SAR_Report_${new Date().toISOString().split("T")[0]}.pdf`);
+      toast.success("PDF exported successfully!");
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      toast.error("Failed to export PDF");
+    } finally {
+      setExporting(false);
+    }
   };
 
   if (loading) {
@@ -91,15 +146,16 @@ const SARReport = () => {
                 <Printer className="w-4 h-4" />
                 Print
               </Button>
-              <Button size="sm" className="gap-2">
-                <Download className="w-4 h-4" />
-                Export PDF
+              <Button size="sm" className="gap-2" onClick={handleExportPDF} disabled={exporting}>
+                {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                {exporting ? "Exporting..." : "Export PDF"}
               </Button>
             </div>
           </div>
         </div>
       </header>
 
+      <div ref={reportRef}>
       {/* Report Header Banner */}
       <div className="bg-primary/5 border-b border-border">
         <div className="container mx-auto px-6 py-6">
@@ -276,6 +332,7 @@ const SARReport = () => {
           <p className="mt-1">This report is generated in compliance with PMLA 2002 regulations.</p>
         </div>
       </main>
+      </div>
     </div>
   );
 };
