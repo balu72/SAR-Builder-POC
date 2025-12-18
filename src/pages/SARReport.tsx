@@ -56,13 +56,21 @@ const SARReport = () => {
     toast.info("Generating PDF...");
     
     try {
-      const canvas = await html2canvas(reportRef.current, {
+      // Wait for any pending renders
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      const element = reportRef.current;
+      
+      const canvas = await html2canvas(element, {
         scale: 2,
         useCORS: true,
-        logging: false,
-        backgroundColor: "#f8fafc",
-        windowWidth: reportRef.current.scrollWidth,
-        windowHeight: reportRef.current.scrollHeight,
+        allowTaint: true,
+        logging: true,
+        backgroundColor: "#ffffff",
+        width: element.offsetWidth,
+        height: element.offsetHeight,
+        scrollX: 0,
+        scrollY: -window.scrollY,
       });
       
       const imgData = canvas.toDataURL("image/png");
@@ -167,7 +175,7 @@ const SARReport = () => {
         </div>
       </header>
 
-      <div ref={reportRef}>
+      <div ref={reportRef} className="bg-background">
       {/* Report Header Banner */}
       <div className="bg-primary/5 border-b border-border">
         <div className="container mx-auto px-6 py-6">
