@@ -1,73 +1,99 @@
-# Welcome to your Lovable project
+# SAR Builder POC
 
-## Project info
+A Proof of Concept application for building Suspicious Activity Reports (SAR) compliant with FIU-IND (Financial Intelligence Unit - India) regulations.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## Project Structure
 
-## How can I edit this code?
+This project is organized into separate frontend and backend directories:
 
-There are several ways of editing your application.
+```
+SAR-Builder-POC/
+├── frontend/          # React + TypeScript frontend
+├── backend/           # Flask backend
+├── SBA STR Template.pdf  # Official FIU-IND STR template
+└── README.md
+```
 
-**Use Lovable**
+## Frontend
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+**Technology Stack:**
+- React 18 with TypeScript
+- Vite for build tooling
+- Tailwind CSS + shadcn/ui for styling
+- React Router for navigation
+- pdf-lib for PDF generation
 
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+**Setup:**
+```bash
+cd frontend
+npm install
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+Frontend runs on `http://localhost:8080`
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+See [frontend/README.md](./frontend/README.md) for detailed documentation.
 
-**Use GitHub Codespaces**
+## Backend
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+**Technology Stack:**
+- Python Flask
+- RESTful API architecture
 
-## What technologies are used for this project?
+**Setup:**
+```bash
+cd backend
+pip install -r requirements.txt
+python app.py
+```
 
-This project is built with:
+Backend runs on `http://localhost:5000`
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+## Features
 
-## How can I deploy this project?
+- **FIU-IND Compliant Reporting**: Generate Suspicious Transaction Reports (STR) following official guidelines
+- **Official Template Integration**: Uses the SBA STR Template.pdf for accurate report generation
+- **Interactive Forms**: User-friendly interface with validation
+- **PDF Export**: Generate filled PDF reports using the official template
+- **Mock Data**: Pre-populated data for testing and demonstration
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+## Report Sections
 
-## Can I connect a custom domain to my Lovable project?
+1. Details of Report
+2. Details of Principal Officer
+3. Details of Reporting Branch/Location
+4. List of Individuals Linked to Transactions
+5. List of Legal Persons/Entities Linked to Transactions
+6. List of Accounts Linked to Transactions
+7. Details of Suspicious Transaction
+8. Details of Action Taken
 
-Yes, you can!
+## Development
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+### Prerequisites
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+- Node.js 18+
+- Python 3.8+
+- npm or yarn
+
+### Running the Full Stack
+
+**Terminal 1 - Frontend:**
+```bash
+cd frontend
+npm run dev
+```
+
+**Terminal 2 - Backend:**
+```bash
+cd backend
+python app.py
+```
+
+## License
+
+This is a proof of concept project for educational and demonstration purposes.
+
+## Compliance Note
+
+This application generates reports based on FIU-IND's Suspicious Transaction Report format for banking companies. Ensure all data handling complies with applicable regulations and data privacy laws.

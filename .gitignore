@@ -1,4 +1,4 @@
-# Logs
+# Frontend - Logs
 logs
 *.log
 npm-debug.log*
@@ -7,10 +7,22 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Frontend - Dependencies and build
 node_modules
 dist
 dist-ssr
 *.local
+
+# Backend - Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.venv
 
 # Editor directories and files
 .vscode/*

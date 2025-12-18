@@ -9,8 +9,7 @@ import DataTable from "@/components/report/DataTable";
 import { SARReportData } from "@/types/sarReport";
 import { mockSARData } from "@/data/mockSARData";
 import { Badge } from "@/components/ui/badge";
-import html2canvas from "html2canvas";
-import jsPDF from "jspdf";
+import { PDFDocument } from "pdf-lib";
 import { toast } from "sonner";
 
 const SARReport = () => {
@@ -50,69 +49,212 @@ const SARReport = () => {
   };
 
   const handleExportPDF = async () => {
-    if (!reportRef.current) return;
+    if (!data) return;
     
     setExporting(true);
-    toast.info("Generating PDF...");
+    toast.info("Generating PDF from template...");
     
     try {
-      // Wait for any pending renders
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // Fetch the template PDF
+      const templateUrl = '/SBA STR Template.pdf';
+      const existingPdfBytes = await fetch(templateUrl).then(res => res.arrayBuffer());
       
-      const element = reportRef.current;
+      // Load the PDF template
+      const pdfDoc = await PDFDocument.load(existingPdfBytes);
+      const form = pdfDoc.getForm();
       
-      const canvas = await html2canvas(element, {
-        scale: 2,
-        useCORS: true,
-        allowTaint: true,
-        logging: true,
-        backgroundColor: "#ffffff",
-        width: element.offsetWidth,
-        height: element.offsetHeight,
-        scrollX: 0,
-        scrollY: -window.scrollY,
-      });
+      // Get all form fields
+      const fields = form.getFields();
+      console.log('Total form fields:', fields.length);
       
-      const imgData = canvas.toDataURL("image/png");
-      const pdf = new jsPDF({
-        orientation: "portrait",
-        unit: "mm",
-        format: "a4",
-      });
+      // Export all field names to help identify Parts 6, 7, 8
+      const fieldInfo = fields.map((field, index) => ({
+        index,
+        name: field.getName(),
+        type: field.constructor.name
+      }));
       
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = pdf.internal.pageSize.getHeight();
-      const imgWidth = canvas.width;
-      const imgHeight = canvas.height;
-      const ratio = pdfWidth / imgWidth;
-      const scaledHeight = imgHeight * ratio;
+      console.log('=== ALL PDF FORM FIELDS ===');
+      console.table(fieldInfo);
       
-      let yOffset = 0;
-      let pageCount = 0;
+      // Download field names as JSON for easier analysis
+      const fieldJson = JSON.stringify(fieldInfo, null, 2);
+      const fieldBlob = new Blob([fieldJson], { type: 'application/json' });
+      const fieldUrl = URL.createObjectURL(fieldBlob);
+      const fieldLink = document.createElement('a');
+      fieldLink.href = fieldUrl;
+      fieldLink.download = 'PDF_Field_Names.json';
+      document.body.appendChild(fieldLink);
+      fieldLink.click();
+      document.body.removeChild(fieldLink);
+      URL.revokeObjectURL(fieldUrl);
       
-      while (yOffset < scaledHeight) {
-        if (pageCount > 0) {
-          pdf.addPage();
+      toast.info('Downloaded field names list - check PDF_Field_Names.json');
+      
+      // Fill in the form fields with actual data mappings
+      try {
+        // Part 1: Report Details - Date of sending report
+        const dateStr = data.reportDetails.dateOfSending; // Format: "2024-03-15"
+        const [year, month, day] = dateStr.split('-');
+        
+        form.getTextField('Date1').setText(day[0]);
+        form.getTextField('Date2').setText(day[1]);
+        form.getTextField('Month1').setText(month[0]);
+        form.getTextField('Month2').setText(month[1]);
+        
+        // Year field only accepts 1 digit - use last digit only
+        try {
+          form.getTextField('Year').setText(year[3]); // Use last digit only (4 from 2024)
+        } catch (yearError) {
+          console.log('Year field error:', yearError);
         }
         
-        pdf.addImage(
-          imgData,
-          "PNG",
-          0,
-          -yOffset,
-          pdfWidth,
-          scaledHeight
-        );
+        // Replacement checkbox
+        if (data.reportDetails.isReplacement) {
+          form.getCheckBox('ReplacementYN').check();
+          
+          if (data.reportDetails.originalReportDate) {
+            const [oYear, oMonth, oDay] = data.reportDetails.originalReportDate.split('-');
+            form.getTextField('OrDate1').setText(oDay[0]);
+            form.getTextField('OrDate2').setText(oDay[1]);
+            form.getTextField('OrMonth1').setText(oMonth[0]);
+            form.getTextField('OrMonth2').setText(oMonth[1]);
+            
+            try {
+              form.getTextField('OrYear').setText(oYear[3]); // Use last digit only
+            } catch (oYearError) {
+              console.log('Original year field error:', oYearError);
+            }
+          }
+        }
         
-        yOffset += pdfHeight;
-        pageCount++;
+        // Part 2: Principal Officer
+        form.getTextField('NameEntity').setText(data.principalOfficer.bankName);
+        form.getTextField('UnqiueCode').setText(data.principalOfficer.bsrCode);
+        form.getTextField('IDFIU').setText(data.principalOfficer.fiuIndId);
+        form.getTextField('EntityCategory').setText(data.principalOfficer.bankCategory);
+        form.getTextField('DesignationPrincipal').setText(`${data.principalOfficer.officerName}, ${data.principalOfficer.designation}`);
+        form.getTextField('PrincipalAddress1').setText(data.principalOfficer.addressNo);
+        form.getTextField('PrincipalAddress2').setText(data.principalOfficer.street);
+        form.getTextField('PrincipalAddress3').setText(data.principalOfficer.locality);
+        form.getTextField('PrincipalAddress4').setText(data.principalOfficer.cityDistrict);
+        form.getTextField('PrincipalAddress5').setText(data.principalOfficer.stateCountry);
+        form.getTextField('PrincipalPIN').setText(data.principalOfficer.pinCode);
+        form.getTextField('PrincipalTel').setText(data.principalOfficer.telephone);
+        form.getTextField('PrincipalFAX').setText(data.principalOfficer.fax);
+        form.getTextField('PrincipalEmail').setText(data.principalOfficer.email);
+        
+        // Part 3: Reporting Branch
+        form.getTextField('NameBranch').setText(data.reportingBranch.branchName);
+        form.getTextField('BranchCode').setText(data.reportingBranch.bsrCode);
+        form.getTextField('BranchIDFIU').setText(data.reportingBranch.fiuIndId);
+        form.getTextField('BranchAddress1').setText(data.reportingBranch.addressNo);
+        form.getTextField('BranchAddress2').setText(data.reportingBranch.street);
+        form.getTextField('BranchAddress3').setText(data.reportingBranch.locality);
+        form.getTextField('BranchAddress4').setText(data.reportingBranch.cityDistrict);
+        form.getTextField('BranchAddress5').setText(data.reportingBranch.stateCountry);
+        form.getTextField('BranchPIN').setText(data.reportingBranch.pinCode);
+        form.getTextField('BranchTel').setText(data.reportingBranch.telephone);
+        form.getTextField('BranchFAX').setText(data.reportingBranch.fax);
+        form.getTextField('BranchEmail').setText(data.reportingBranch.email);
+        
+        // Part 4: Linked Individuals (up to 15 individuals)
+        data.linkedIndividuals.forEach((individual, index) => {
+          if (index < 15) {
+            const fieldNum = index + 1;
+            form.getTextField(`Individual${fieldNum}`).setText(`${individual.name} | ${individual.customerId} | ${individual.annexure}`);
+          }
+        });
+        
+        // Part 5: Linked Entities (up to 3)
+        data.linkedEntities.forEach((entity, index) => {
+          if (index < 3) {
+            const fieldNum = index + 1;
+            form.getTextField(`LegalPerson${fieldNum}`).setText(`${entity.name} | ${entity.customerId} | ${entity.annexure}`);
+          }
+        });
+        
+        // Part 6: Linked Accounts - NOW WITH ACTUAL CORRECT FIELD NAMES!
+        console.log('Filling Part 6 - Accounts...');
+        data.linkedAccounts.forEach((account, index) => {
+          if (index < 10) {
+            const fieldNum = index + 1;
+            form.getTextField(`Account${fieldNum}`).setText(account.accountNumber);
+            form.getTextField(`AccountHolder${fieldNum}`).setText(account.accountHolderName);
+            // Check annexure checkbox if annexure exists
+            if (account.annexure) {
+              form.getCheckBox(`AccountAnnexureYN${fieldNum}`).check();
+            }
+          }
+        });
+        console.log(`Filled ${Math.min(data.linkedAccounts.length, 10)} accounts`);
+        
+        // Part 7: Suspicious Transaction Details - NOW WITH ACTUAL CORRECT FIELD NAMES!
+        console.log('Filling Part 7 - Suspicious Transaction...');
+        
+        // Check reason checkboxes (A-F, Z)
+        data.suspiciousTransaction.reasonsForSuspicion.forEach(reason => {
+          if (reason === 'Z') {
+            form.getCheckBox('SuspicionCategoryZ').check();
+          } else {
+            form.getCheckBox(`SuspicionCategory${reason}`).check();
+          }
+        });
+        console.log('Checked reason boxes:', data.suspiciousTransaction.reasonsForSuspicion.join(', '));
+        
+        // Grounds of suspicion (2 fields available)
+        const grounds = data.suspiciousTransaction.groundsOfSuspicion;
+        if (grounds.length > 0) {
+          form.getTextField('GroundOfSuspicion1').setText(grounds[0]);
+        }
+        if (grounds.length > 1) {
+          const remainingGrounds = grounds.slice(1).join(' | ');
+          form.getTextField('GroundOfSuspicion2').setText(remainingGrounds);
+        }
+        console.log(`Filled ${grounds.length} grounds of suspicion`);
+        
+        // Part 8: Action Taken - NOW WITH ACTUAL CORRECT FIELD NAME!
+        console.log('Filling Part 8 - Action Taken...');
+        const actions = data.actionTaken.investigationDetails.join(' | ');
+        form.getTextField('ActionTaken').setText(actions);
+        console.log(`Filled action taken with ${data.actionTaken.investigationDetails.length} investigation details`);
+        
+        console.log('✅ Successfully filled ALL Parts 1-8 with form data!');
+        
+        toast.success('PDF form filled with SAR data');
+        
+      } catch (fieldError) {
+        console.error('Error filling form fields:', fieldError);
+        toast.warning('Some fields could not be filled: ' + fieldError);
       }
       
-      pdf.save(`SAR_Report_${new Date().toISOString().split("T")[0]}.pdf`);
+      // Update field appearances before flattening
+      form.updateFieldAppearances();
+      console.log('Updated field appearances');
+      
+      // Flatten the form to make it non-editable
+      form.flatten();
+      console.log('Form flattened');
+      
+      // Save the PDF
+      const pdfBytes = await pdfDoc.save();
+      console.log('PDF saved, size:', pdfBytes.length, 'bytes');
+      
+      // Create a blob and download
+      const blob = new Blob([pdfBytes as any], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `SAR_Report_${new Date().toISOString().split("T")[0]}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
       toast.success("PDF exported successfully!");
     } catch (error) {
       console.error("Error generating PDF:", error);
-      toast.error("Failed to export PDF");
+      toast.error(`Failed to export PDF: ${error}`);
     } finally {
       setExporting(false);
     }
